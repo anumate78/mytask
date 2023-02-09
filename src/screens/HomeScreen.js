@@ -1,0 +1,167 @@
+import React, {useEffect, useState} from 'react';
+import {
+  SafeAreaView,
+  StyleSheet,
+  FlatList,
+  Dimensions,
+  Alert,
+} from 'react-native';
+import CAColors from '../res/CAColors';
+import CAStrings from '../res/CAStrings';
+import CACard from '../components/CACard';
+import {
+  shuffle,
+  createArrayOfNumbers,
+  mergeTwoArrays,
+  checkWhetherAllCardsMatched,
+  arrayToDataArray,
+} from '../Utils/SupportFun';
+import CAHeader from '../components/CAHeader';
+
+const HomeScreen = () => {
+  //this will be used to decide the hard height / width based on screen size
+  const screenWidth = Math.round(Dimensions.get('window').width) - 48;
+  const screenHeight = Math.round(Dimensions.get('window').height) - 160;
+
+  //unique number array
+  const CARD_PAIRS_VALUE = createArrayOfNumbers();
+  //unique number array duplicated and shuffled here
+  const [cardNumbers, setCardNumbers] = useState([]);
+  //number of steps
+  const [steps, setSteps] = useState(0);
+  //number of cards flipped at a given time
+  const [flipCount, setFlipCount] = useState(0);
+  //details of the cards that are flipped
+  const [firstFlippedCard, setFirstFlippedCard] = useState(null);
+  const [secondFlippedCard, setSecondFlippedCard] = useState(null);
+
+  useEffect(() => {
+    shuffleCards();
+  }, []);
+
+  useEffect(() => {
+    if (flipCount > 1) {
+      checkMatchedCards();
+    }
+  }, [flipCount]);
+
+  const shuffleCards = () => {
+    let mergedArray = mergeTwoArrays(CARD_PAIRS_VALUE, CARD_PAIRS_VALUE);
+    let shuffledArray = shuffle(mergedArray);
+    setupData(shuffledArray);
+  };
+
+  const setupData = (shuffledArray) => {
+    let dataArray = arrayToDataArray(shuffledArray);
+    setCardNumbers(dataArray);
+  };
+
+  const resetSteps = () => {
+    //reset count
+    setSteps(0);
+    //reset cards
+    shuffleCards();
+    //reset flip count
+    setFlipCount(0);
+  };
+
+  const checkMatchedCards = () => {
+    if (firstFlippedCard.value.number === secondFlippedCard.value.number) {
+      setFlipCount(0);
+      
+      //check whether all matched
+     
+        Alert.alert(
+          'WON',
+          `${CAStrings.CONGRATULATION_TEXT} ${steps} ${CAStrings.STEPS}`,
+          [
+            {
+              text: 'Play Again',
+              onPress: () => resetSteps(),
+            },
+          ],
+          {cancelable: false},
+        );
+    } else {
+      //flip back timer
+      setTimeout(() => {
+        flipCardsAsNotMatched();
+      }, 1000);
+    }
+  };
+
+  const flipCardsAsNotMatched = () => {
+    let newArray = [...cardNumbers];
+    newArray.map((cardItem) => {
+      if (
+        firstFlippedCard.id === cardItem.id ||
+        secondFlippedCard.id === cardItem.id
+      ) {
+        cardItem.flipped = false;
+      }
+    });
+
+    setCardNumbers(newArray);
+    setFlipCount(0);
+  };
+
+  const cardTouched = async (item) => {
+    console.log("item",item)
+    if (flipCount > 1) {
+      return;
+    }
+
+    //flip logic
+    let newItem = item;
+    newItem.flipped = true;
+    let newArray = [...cardNumbers];
+    newArray[item.id] = newItem;
+    setCardNumbers(newArray);
+
+    
+    setSteps(steps + 1);
+
+   
+    setFlipCount(flipCount + 1);
+    if (flipCount === 0) {
+      setFirstFlippedCard(newItem);
+    }
+
+    if (flipCount === 1) {
+      setSecondFlippedCard(newItem);
+    }
+  };
+
+  const renderItem = ({item}) => (
+    <CACard
+      title={item.value}
+      width={screenWidth / 4}
+      height={screenHeight / 5}
+      flipped={item.flipped}
+      cardTouched={() => {
+        cardTouched(item);
+      }}
+    />
+  );
+
+  return (
+    <SafeAreaView style={styles.parentContainer}>
+      <CAHeader steps={steps} onPress={resetSteps} />
+      <FlatList
+        data={cardNumbers}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        numColumns={4}
+      />
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  parentContainer: {
+    backgroundColor: CAColors.BG_WHITE,
+    flex: 1,
+  },
+});
+
+export default HomeScreen;
